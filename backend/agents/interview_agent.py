@@ -36,14 +36,10 @@ Return JSON only in the following format:
                     "content": prompt,
                 }
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             response_format={"type": "json_object"},
         )
         return json.loads(chat_completion.choices[0].message.content)
     except Exception as e:
         print(f"Error in interview_agent: {e}")
-        return {
-            "hr_questions": [f"HR Q{i}" for i in range(1, 11)],
-            "technical_questions": [f"Tech Q{i}" for i in range(1, 11)],
-            "behavioral_questions": [f"Behavioral Q{i}" for i in range(1, 6)]
-        }
+        raise e

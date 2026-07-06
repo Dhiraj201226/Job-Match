@@ -51,31 +51,10 @@ Return JSON only in the following format:
                     "content": prompt,
                 }
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             response_format={"type": "json_object"},
         )
         return json.loads(chat_completion.choices[0].message.content)
     except Exception as e:
         print(f"Error in roadmap_agent: {e}")
-        return {
-            "roadmap": [
-                {
-                    "month": "Month 1",
-                    "focus": "Learn SQL basics",
-                    "projects": ["Build a simple database"],
-                    "resources": ["SQLCourse.com"]
-                },
-                {
-                    "month": "Month 2",
-                    "focus": "Learn Docker",
-                    "projects": ["Containerize a Python app"],
-                    "resources": ["Docker documentation"]
-                },
-                {
-                    "month": "Month 3",
-                    "focus": "Learn Power BI",
-                    "projects": ["Create a sales dashboard"],
-                    "resources": ["Microsoft Learn"]
-                }
-            ]
-        }
+        raise e

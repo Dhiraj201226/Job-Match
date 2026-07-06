@@ -40,12 +40,10 @@ Combine tools and certifications into the missing_skills list if appropriate, or
                     "content": prompt,
                 }
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             response_format={"type": "json_object"},
         )
         return json.loads(chat_completion.choices[0].message.content)
     except Exception as e:
         print(f"Error in skill_gap_agent: {e}")
-        return {
-            "missing_skills": ["SQL", "Docker", "Power BI"]
-        }
+        raise e

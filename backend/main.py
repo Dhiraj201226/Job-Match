@@ -19,6 +19,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+def read_root():
+    return {"message": "Job-Match API is running! Please use the frontend app at http://localhost:5173 to interact with this service."}
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}

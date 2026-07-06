@@ -39,15 +39,10 @@ Return JSON only in the following format:
                     "content": prompt,
                 }
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             response_format={"type": "json_object"},
         )
         return json.loads(chat_completion.choices[0].message.content)
     except Exception as e:
         print(f"Error in resume_agent: {e}")
-        return {
-            "skills": ["Python", "React", "FastAPI"],
-            "projects": ["Job Match AI"],
-            "education": "B.Tech Computer Science",
-            "strengths": ["Fast learner"]
-        }
+        raise e

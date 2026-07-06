@@ -19,8 +19,9 @@ export default function ResumeUpload() {
     formData.append('resume', file);
 
     try {
-      // Pointing to local backend
-      const res = await axios.post('http://127.0.0.1:8000/analyze', formData, {
+      // Pointing to backend using environment variable
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const res = await axios.post(`${apiUrl}/analyze`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       navigate('/report', { state: { data: res.data } });
