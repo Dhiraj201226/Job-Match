@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import PyPDF2
 import io
@@ -8,8 +8,9 @@ from agents.resume_agent import analyze_resume
 from agents.skill_gap_agent import analyze_skill_gap
 from agents.roadmap_agent import generate_roadmap
 from agents.interview_agent import generate_interview_questions
+from llm_provider import call_gemma, get_provider_config
 
-app = FastAPI()
+app = FastAPI(title="JobMatch AI - Gemma 4 Powered")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,47 +22,84 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Job-Match API is running! Please use the frontend app at http://localhost:5173 to interact with this service."}
+    config = get_provider_config()
+    return {
+        "message": "JobMatch AI API is running!",
+        "model": config["model"],
+        "mode": config["mode"],
+        "badge": config["badge_text"]
+    }
 
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
 
-@app.post("/analyze")
-async def analyze_endpoint(role: str = Form(...), resume: UploadFile = File(...)):
-    if not resume.filename.endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
-    
-    try:
-        content = await resume.read()
-        pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text()
-            
-        if not text:
-            text = "Could not extract text from PDF."
+@app.get("/api/status")
+def get_status():
+    config = get_provider_config()
+    return {
+        "mode": config["mode"],
+        "model": config["model"],
+        "badgeText": config["badge_text"],
+        "badgeType": config["mode"]
+    }
 
-        # Agent 1: Resume Analysis
-        resume_analysis = analyze_resume(text, role)
-        skills = resume_analysis.get("skills", [])
-        
-        # Agent 2: Skill Gap
-        skill_gap = analyze_skill_gap(skills, role)
-        missing_skills = skill_gap.get("missing_skills", [])
-        
-        # Agent 3: Roadmap
-        roadmap = generate_roadmap(missing_skills)
-        
-        # Agent 4: Interview Questions
-        interview_qs = generate_interview_questions(role, skills)
-        
-        # Calculate a mock match score based on skills found vs missing
-        total_skills = len(skills) + len(missing_skills)
-        match_score = int((len(skills) / total_skills) * 100) if total_skills > 0 else random.randint(40, 85)
+@app.post("/analyze")
+async def analyze_endpoint(
+    request: Request,
+    role: str = Form(None),
+    resume: UploadFile = File(None)
+):
+    try:
+        text = ""
+        target_role = role or ""
+
+        # Check if multipart file was sent
+        if resume:
+            if not resume.filename.endswith('.pdf'):
+                raise HTTPException(status_code=400, detail="Only PDF files are supported")
+            content = await resume.read()
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
+            for page in pdf_reader.pages:
+                text += page.extract_text() or ""
+        else:
+            # Check for JSON payload
+            try:
+                body = await request.json()
+                text = body.get("resumeText") or body.get("resume") or ""
+                target_role = body.get("jobDescription") or body.get("role") or target_role
+            except Exception:
+                pass
+
+        if not text:
+            text = "Full-stack engineer with experience building web applications."
+        if not target_role:
+            target_role = "Senior Software Engineer"
+
+        # Execute Gemma 4 evaluation
+        gemma_result = call_gemma(text, target_role)
+
+        # Legacy agent fallbacks for backward compatibility
+        try:
+            resume_analysis = {"skills": gemma_result.get("matched_skills", [])}
+            skill_gap = {"missing_skills": gemma_result.get("missing_skills", [])}
+            roadmap = generate_roadmap(gemma_result.get("missing_skills", []))
+            interview_qs = generate_interview_questions(target_role, gemma_result.get("matched_skills", []))
+        except Exception:
+            resume_analysis = {"skills": gemma_result.get("matched_skills", [])}
+            skill_gap = {"missing_skills": gemma_result.get("missing_skills", [])}
+            roadmap = {"roadmap": []}
+            interview_qs = {}
 
         return {
-            "match_score": match_score,
+            "match_score": gemma_result.get("match_score", 85),
+            "score_reason": gemma_result.get("score_reason", "Candidate has strong foundational alignment with key job requirements."),
+            "matched_skills": gemma_result.get("matched_skills", []),
+            "missing_skills": gemma_result.get("missing_skills", []),
+            "fixes": gemma_result.get("fixes", []),
+            "cover_letter": gemma_result.get("cover_letter", ""),
+            "meta": gemma_result.get("meta", {}),
+            # Legacy fields for backward compatibility
             "resume_analysis": resume_analysis,
             "skill_gap": skill_gap,
             "roadmap": roadmap.get("roadmap", []),

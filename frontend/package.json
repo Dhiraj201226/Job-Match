@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test test/llm.test.js",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -15,6 +16,7 @@
     "autoprefixer": "^10.5.2",
     "axios": "^1.18.1",
     "lucide-react": "^1.23.0",
+    "pdfjs-dist": "^6.4.299",
     "postcss": "^8.5.16",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
